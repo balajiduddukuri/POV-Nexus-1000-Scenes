@@ -1,0 +1,5 @@
+{
+  "name": "POV Nexus: 1000 Scenes",
+  "description": "A high-performance cinematic POV concept generator using Gemini 2.5 Flash to curate a gallery of 1000 unique visual prompts.",
+  "requestFramePermissions": []
+}
