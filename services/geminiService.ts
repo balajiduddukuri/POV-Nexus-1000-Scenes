@@ -3,8 +3,13 @@ import { SceneConcept, Category } from "../types";
 import { SYSTEM_INSTRUCTION, PROMPT_COMPONENTS, LOCATION_CATEGORY_MAP } from "../constants";
 
 // Initialize Gemini Client
+// Note: This instance captures the env key at module load time.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * JSON Schema for Structured Output.
+ * Ensures the API returns a strictly formatted array of objects.
+ */
 const sceneSchema = {
   type: Type.ARRAY,
   items: {
@@ -19,12 +24,21 @@ const sceneSchema = {
   }
 };
 
+/**
+ * Generates a batch of text-based scene concepts using the Gemini API.
+ * 
+ * @param startId - The ID to start numbering the new scenes from.
+ * @param count - The number of scenes to generate in this batch.
+ * @param targetCategories - Array of categories to bias the generation towards.
+ * @returns Promise<SceneConcept[]> - An array of structured scene objects.
+ */
 export const generateSceneBatch = async (
   startId: number,
   count: number,
   targetCategories: Category[]
 ): Promise<SceneConcept[]> => {
   // Always instantiate new client inside the function
+  // This is critical for environments where the user provides the key at runtime (BYOK).
   const freshAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   if (!process.env.API_KEY) throw new Error("API Key is missing.");
@@ -63,6 +77,14 @@ export const generateSceneBatch = async (
   }
 };
 
+/**
+ * Generates scenes locally without using the API (Instant Mode).
+ * Uses pre-defined arrays from constants.ts to construct logical sentences.
+ * 
+ * @param startId - The ID to start numbering from.
+ * @param count - The number of scenes to generate.
+ * @returns SceneConcept[] - Array of generated scenes with placeholder thumbnails.
+ */
 export const generateCuratedBatch = (startId: number, count: number): SceneConcept[] => {
   const scenes: SceneConcept[] = [];
   for (let i = 0; i < count; i++) {
@@ -95,6 +117,13 @@ export const generateCuratedBatch = (startId: number, count: number): SceneConce
   return scenes;
 };
 
+/**
+ * Generates a thumbnail image for a specific scene description.
+ * Uses 'gemini-2.5-flash-image' for fast, free-tier compatible generation.
+ * 
+ * @param description - The scene description to visualize.
+ * @returns Promise<string | null> - Base64 encoded image string or null.
+ */
 export const generateSceneThumbnail = async (description: string): Promise<string | null> => {
   // Always instantiate new client to capture potentially newly selected API keys in browser environment
   const freshAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -125,6 +154,13 @@ export const generateSceneThumbnail = async (description: string): Promise<strin
   }
 };
 
+/**
+ * Generates a high-quality image.
+ * Currently uses 'gemini-2.5-flash-image' to align with Free Tier requirements.
+ * 
+ * @param description - The scene description.
+ * @returns Promise<string | null> - Base64 encoded image string or null.
+ */
 export const generateHighQualityImage = async (description: string): Promise<string | null> => {
   // Always instantiate new client to capture potentially newly selected API keys in browser environment
   const freshAi = new GoogleGenAI({ apiKey: process.env.API_KEY });

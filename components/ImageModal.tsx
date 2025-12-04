@@ -8,11 +8,16 @@ interface ImageModalProps {
   theme: ThemeMode;
 }
 
+/**
+ * ImageModal Component
+ * A full-screen overlay for viewing scene details and generating high-resolution images.
+ * Handles focus trapping for accessibility.
+ */
 const ImageModal: React.FC<ImageModalProps> = ({ scene, onClose, onGenerateHighRes, theme }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  // Trap focus
+  // Trap focus within the modal when open and handle Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();

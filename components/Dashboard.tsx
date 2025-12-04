@@ -6,26 +6,35 @@ interface DashboardProps {
   stats: GenerationStats;
   showFavorites: boolean;
   theme: ThemeMode;
+  isAutoVisuals: boolean;
   onStart: () => void;
   onInstantLoad: () => void;
   onStop: () => void;
   onDownload: () => void;
   onToggleShowFavorites: () => void;
   onToggleTheme: () => void;
+  onToggleAutoVisuals: () => void;
   favoriteCount: number;
   playAudioCue: () => void;
 }
 
+/**
+ * Dashboard Component
+ * The top navigation bar containing application controls, progress status,
+ * and global toggles (Theme, Auto Mode, Favorites).
+ */
 const Dashboard: React.FC<DashboardProps> = ({ 
   stats, 
   showFavorites,
   theme,
+  isAutoVisuals,
   onStart, 
   onInstantLoad, 
   onStop, 
   onDownload,
   onToggleShowFavorites,
   onToggleTheme,
+  onToggleAutoVisuals,
   favoriteCount,
   playAudioCue
 }) => {
@@ -91,6 +100,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                 aria-label={isHighContrast ? "Switch to Default Mode" : "Switch to High Contrast Mode"}
              >
                 {isHighContrast ? 'HC ON' : 'HC OFF'}
+             </button>
+
+             {/* Auto Mode Toggle */}
+             <button
+                onClick={() => handleAction(onToggleAutoVisuals)}
+                className={`
+                   px-3 py-2 rounded-lg font-bold text-xs transition-all border flex items-center gap-2
+                   ${isAutoVisuals 
+                     ? (isHighContrast ? 'bg-white text-black border-white' : 'bg-green-500/20 border-green-500/50 text-green-400') 
+                     : (isHighContrast ? 'bg-black text-white border-white' : 'bg-slate-800 border-slate-600 text-slate-400')}
+                `}
+                aria-pressed={isAutoVisuals}
+                title="Automatically generate images for visible scenes"
+             >
+                <div className={`w-2 h-2 rounded-full ${isAutoVisuals ? 'bg-current animate-pulse' : 'bg-slate-600'}`}></div>
+                AUTO IMG
              </button>
 
              {/* Favorites Toggle */}

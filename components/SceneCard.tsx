@@ -2,15 +2,27 @@ import React, { useState } from 'react';
 import { SceneConcept, ThemeMode } from '../types';
 
 interface SceneCardProps {
+  /** The data model for the scene */
   scene: SceneConcept;
+  /** Current UI theme state */
   theme: ThemeMode;
+  /** Callback to trigger thumbnail generation */
   onGenerateImage?: (id: number, description: string) => void;
+  /** Callback to toggle favorite state */
   onToggleFavorite?: (id: number) => void;
+  /** Callback to open the detail modal */
   onViewDetails?: (scene: SceneConcept) => void;
+  /** Function to trigger the audio cue sound */
   playAudioCue?: () => void;
+  /** Callback when share action completes */
   onShare?: () => void;
 }
 
+/**
+ * SceneCard Component
+ * Displays a single POV scene concept. Handles interaction logic for generating
+ * visuals, favoriting, and sharing. Supports High Contrast accessibility mode.
+ */
 const SceneCard: React.FC<SceneCardProps> = ({ 
   scene, 
   theme,
@@ -51,12 +63,18 @@ const SceneCard: React.FC<SceneCardProps> = ({
   const gradientClass = colorStyle.split(' ')[0] + ' ' + colorStyle.split(' ')[1];
   const textColor = isHighContrast ? 'text-white' : colorStyle.split(' ').pop();
 
+  /**
+   * Handles keyboard interaction for accessibility (Enter/Space to view details)
+   */
   const handleInteract = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       if (scene.thumbnailUrl) onViewDetails?.(scene);
     }
   };
 
+  /**
+   * Handles sharing via Web Share API or Clipboard fallback
+   */
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     playAudioCue?.();

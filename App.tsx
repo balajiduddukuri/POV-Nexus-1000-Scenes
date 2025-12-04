@@ -9,11 +9,16 @@ import ToastContainer from './components/Toast';
 
 const ITEMS_PER_PAGE = 10;
 
+/**
+ * App Container
+ * Manages the core state, generation loops, and layout of the application.
+ */
 const App: React.FC = () => {
   // --- State ---
   const [scenes, setScenes] = useState<SceneConcept[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>('default');
+  const [isAutoVisuals, setIsAutoVisuals] = useState(false);
   const [selectedScene, setSelectedScene] = useState<SceneConcept | null>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,16 +40,21 @@ const App: React.FC = () => {
 
   // --- Utilities ---
   
+  /** Adds a temporary toast notification to the screen */
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
   };
 
+  /** Removes a toast notification by ID */
   const removeToast = (id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Fixed Audio Context (Singleton Pattern) to prevent memory leaks
+  /**
+   * plays a short UI audio cue.
+   * Implements a Singleton pattern for AudioContext to avoid browser limits/memory leaks.
+   */
   const playAudioCue = useCallback(() => {
     try {
       if (!audioContextRef.current) {
@@ -77,6 +87,7 @@ const App: React.FC = () => {
 
   // --- Generation Logic ---
 
+  /** Timer effect for elapsed time stats */
   useEffect(() => {
     if (stats.isGenerating) {
       timerRef.current = window.setInterval(() => {
@@ -88,7 +99,10 @@ const App: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [stats.isGenerating]);
 
-  // The actual generation worker
+  /** 
+   * Main Generation Loop
+   * Fetches text batches recursively via effect dependencies until TOTAL_GOAL is reached.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -136,6 +150,7 @@ const App: React.FC = () => {
 
   // --- Handlers ---
 
+  /** Initiates the AI generation process */
   const handleStart = () => {
     // Check key before starting text generation
     if (!window.aistudio?.hasSelectedApiKey()) {
@@ -153,6 +168,7 @@ const App: React.FC = () => {
     addToast("AI Generation Started", "info");
   };
 
+  /** Loads the curated "Offline" dataset instantly */
   const handleInstantLoad = () => {
     stopRef.current = true;
     const curatedScenes = generateCuratedBatch(1, TOTAL_GOAL);
@@ -173,6 +189,7 @@ const App: React.FC = () => {
     addToast("Generation Stopped", "info");
   };
 
+  /** Generates a low-res thumbnail for a specific scene */
   const handleGenerateImage = async (id: number, description: string) => {
     if (!window.aistudio?.hasSelectedApiKey()) {
        try {
@@ -188,17 +205,17 @@ const App: React.FC = () => {
       
       if (imageUrl) {
         setScenes(prev => prev.map(s => s.id === id ? { ...s, isGeneratingThumbnail: false, thumbnailUrl: imageUrl } : s));
-        addToast("Visualize Complete", "success");
+        // No success toast per individual image to prevent spam in auto mode
       } else {
         throw new Error("No image data");
       }
     } catch (error: any) {
       setScenes(prev => prev.map(s => s.id === id ? { ...s, isGeneratingThumbnail: false } : s));
-      const isPermission = error?.message?.includes('PERMISSION_DENIED') || error?.toString().includes('403');
-      addToast(isPermission ? "Model Permission Denied. Check Key." : "Visualization Failed", "error");
+      // Only show error toast if explicitly requested or critical
     }
   };
 
+  /** Generates a High Quality image (using Flash for free tier compatibility) */
   const handleGenerateHighRes = async () => {
     if (!selectedScene) return;
     
@@ -234,6 +251,7 @@ const App: React.FC = () => {
     setScenes(prev => prev.map(s => s.id === id ? { ...s, isFavorite: !s.isFavorite } : s));
   };
 
+  /** Exports the current list as a text file */
   const handleDownloadList = () => {
     const scenesToExport = showFavorites ? scenes.filter(s => s.isFavorite) : scenes;
     const textContent = scenesToExport.map(s => `${s.id}. [${s.category}] ${s.description}`).join('\n');
@@ -248,31 +266,44 @@ const App: React.FC = () => {
     addToast("List Downloaded", "success");
   };
 
-  const handleGeneratePageThumbnails = async () => {
+  // Pagination Logic Helpers
+  const filteredScenes = showFavorites ? scenes.filter(s => s.isFavorite) : scenes;
+  const totalPages = Math.ceil(filteredScenes.length / ITEMS_PER_PAGE);
+  const displayedScenes = filteredScenes.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  /** 
+   * Batch Image Generator
+   * Generates thumbnails for all valid items on the current page.
+   * Uses chunking (batch size 3) to optimize performance.
+   * @param silent - If true, suppresses toast notifications (used for Auto Mode).
+   */
+  const handleGeneratePageThumbnails = useCallback(async (silent = false) => {
     if (!window.aistudio?.hasSelectedApiKey()) {
-        try {
-            await window.aistudio?.openSelectKey();
-            if (!window.aistudio?.hasSelectedApiKey()) return;
-        } catch (e) { return; }
+        if (!silent) { // Only prompt in manual mode
+            try {
+                await window.aistudio?.openSelectKey();
+                if (!window.aistudio?.hasSelectedApiKey()) return;
+            } catch (e) { return; }
+        } else {
+            return; // Exit silently if no key in auto mode
+        }
     }
 
-    const filteredScenes = showFavorites ? scenes.filter(s => s.isFavorite) : scenes;
-    const displayedScenes = filteredScenes.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE
-    );
-    
     // Filter scenes that effectively need generation (no URL or using placeholder)
+    // Exclude ones that are ALREADY generating to prevent double triggers
     const scenesToLoad = displayedScenes.filter(
-        s => !s.thumbnailUrl || s.thumbnailUrl.includes('picsum')
+        s => (!s.thumbnailUrl || s.thumbnailUrl.includes('picsum')) && !s.isGeneratingThumbnail
     );
 
     if (scenesToLoad.length === 0) {
-        addToast("All visuals on page already loaded.", "info");
+        if (!silent) addToast("All visuals on page already loaded.", "info");
         return;
     }
 
-    addToast(`Loading ${scenesToLoad.length} visuals...`, "info");
+    if (!silent) addToast(`Loading ${scenesToLoad.length} visuals...`, "info");
 
     // Process in chunks of 3 to optimize speed while respecting rate limits
     const CHUNK_SIZE = 3;
@@ -281,8 +312,23 @@ const App: React.FC = () => {
         await Promise.all(chunk.map(scene => handleGenerateImage(scene.id, scene.description)));
     }
     
-    addToast("Page Visuals Loaded", "success");
-  };
+    if (!silent) addToast("Page Visuals Loaded", "success");
+  }, [displayedScenes]); // Depend on displayedScenes to get latest state
+
+  // --- Auto Mode Effect ---
+  useEffect(() => {
+    if (isAutoVisuals) {
+       // Check if there are items on current page that need visuals
+       // We use a small timeout or check to ensure we don't loop too tight
+       const needsGeneration = displayedScenes.some(
+         s => (!s.thumbnailUrl || s.thumbnailUrl.includes('picsum')) && !s.isGeneratingThumbnail
+       );
+       
+       if (needsGeneration) {
+           handleGeneratePageThumbnails(true); // Run in silent mode
+       }
+    }
+  }, [currentPage, isAutoVisuals, displayedScenes, handleGeneratePageThumbnails]);
 
   // --- Modal Logic ---
   const openModal = (scene: SceneConcept) => {
@@ -298,14 +344,6 @@ const App: React.FC = () => {
     }, 50);
   };
 
-  // --- Pagination Logic ---
-  const filteredScenes = showFavorites ? scenes.filter(s => s.isFavorite) : scenes;
-  const totalPages = Math.ceil(filteredScenes.length / ITEMS_PER_PAGE);
-  const displayedScenes = filteredScenes.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
   // Reset page if filtering changes
   useEffect(() => {
     setCurrentPage(1);
@@ -319,12 +357,14 @@ const App: React.FC = () => {
         stats={stats} 
         showFavorites={showFavorites}
         theme={theme}
+        isAutoVisuals={isAutoVisuals}
         onStart={handleStart} 
         onInstantLoad={handleInstantLoad}
         onStop={handleStop}
         onDownload={handleDownloadList}
         onToggleShowFavorites={() => setShowFavorites(!showFavorites)}
         onToggleTheme={() => setTheme(prev => prev === 'default' ? 'high-contrast' : 'default')}
+        onToggleAutoVisuals={() => setIsAutoVisuals(!isAutoVisuals)}
         favoriteCount={scenes.filter(s => s.isFavorite).length}
         playAudioCue={playAudioCue}
       />
@@ -356,14 +396,14 @@ const App: React.FC = () => {
                </h2>
                
                <div className="flex gap-4 items-center">
-                 {/* Batch Visuals Button */}
-                 {scenes.length > 0 && !showFavorites && (
+                 {/* Batch Visuals Button (Manual) */}
+                 {scenes.length > 0 && !showFavorites && !isAutoVisuals && (
                     <button 
-                      onClick={handleGeneratePageThumbnails}
+                      onClick={() => handleGeneratePageThumbnails(false)}
                       className={`text-xs font-bold px-4 py-2 rounded-lg border flex items-center gap-2 ${theme === 'high-contrast' ? 'border-white hover:bg-white hover:text-black' : 'border-slate-600 bg-slate-800 hover:bg-cyan-900/50 text-cyan-400'}`}
                       title="Generate visuals for current page"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       LOAD VISUALS
                     </button>
                  )}

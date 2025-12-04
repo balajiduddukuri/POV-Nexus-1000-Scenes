@@ -1,8 +1,15 @@
 import { Category } from './types';
 
+/** Number of scenes to request from the API per call */
 export const BATCH_SIZE = 50;
+
+/** Target number of total scenes to generate */
 export const TOTAL_GOAL = 1000;
 
+/**
+ * Prioritized list of categories to rotate through during generation.
+ * Neon is prioritized for the specific theme request.
+ */
 export const CATEGORIES_LIST = [
   Category.Neon, // Prioritized
   Category.Cyberpunk,
@@ -26,6 +33,9 @@ export const CATEGORIES_LIST = [
   Category.EverydayLife
 ];
 
+/**
+ * System Instruction passed to the Gemini API to define its persona and output constraints.
+ */
 export const SYSTEM_INSTRUCTION = `
 You are a world-class cinematographer and creative director for a virtual gallery. 
 Your task is to generate unique, visually rich, and cinematic POV (Point-of-View) scene concepts.
@@ -34,6 +44,10 @@ Do not use violence or explicit content.
 Each output must be distinct.
 `;
 
+/**
+ * Component lists for the "Instant Load" (Offline/Curated) generator.
+ * These arrays allow constructing valid scenes without API calls.
+ */
 export const PROMPT_COMPONENTS = {
   moods: [
     'peaceful', 'dreamlike', 'heroic', 'enigmatic', 'surreal', 
@@ -67,6 +81,10 @@ export const PROMPT_COMPONENTS = {
   ]
 };
 
+/**
+ * Mapping logic to assign a logical Category to the random locations
+ * used in the Instant Load generator.
+ */
 export const LOCATION_CATEGORY_MAP: Record<string, string> = {
   'floating sky temple': 'Fantasy',
   'rainy city street': 'Urban Life',

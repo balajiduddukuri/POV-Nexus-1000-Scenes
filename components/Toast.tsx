@@ -7,6 +7,11 @@ interface ToastContainerProps {
   theme: ThemeMode;
 }
 
+/**
+ * ToastContainer Component
+ * Manages the positioning and list rendering of active notifications.
+ * Uses `aria-live` to announce updates to screen readers.
+ */
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast, theme }) => {
   return (
     <div 
@@ -20,6 +25,10 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeTo
   );
 };
 
+/**
+ * Individual Toast Notification
+ * Auto-dismisses after 3 seconds.
+ */
 const Toast: React.FC<{ toast: ToastMessage; onRemove: () => void; theme: ThemeMode }> = ({ toast, onRemove, theme }) => {
   useEffect(() => {
     const timer = setTimeout(onRemove, 3000);
