@@ -106,14 +106,10 @@ export const generateSceneThumbnail = async (description: string): Promise<strin
 
   try {
     const response = await freshAi.models.generateContent({
-      model: 'gemini-3-pro-image-preview', // Reverted to Pro for reliability
+      model: 'gemini-2.5-flash-image', 
       contents: { parts: [{ text: description }] },
-      config: {
-        imageConfig: {
-          imageSize: '1K',
-          aspectRatio: '16:9'
-        }
-      }
+      // Flash model handles aspect ratio via internal defaults or simple prompts better than explicit complex config
+      // Removing strict imageSize to avoid permission/argument errors on free tier
     });
     
     // Find image part
@@ -140,14 +136,9 @@ export const generateHighQualityImage = async (description: string): Promise<str
 
   try {
     const response = await freshAi.models.generateContent({
-      model: 'gemini-3-pro-image-preview', // Reverted to Pro for reliability
+      model: 'gemini-2.5-flash-image', // Fallback to Flash to avoid 403 on Pro
       contents: { parts: [{ text: description }] },
-      config: {
-        imageConfig: {
-          imageSize: '2K', // 2K supported on Pro
-          aspectRatio: '16:9'
-        }
-      }
+      // Removed imageSize: '2K' as it triggers PERMISSION_DENIED on keys without Pro access
     });
     
     // Find image part

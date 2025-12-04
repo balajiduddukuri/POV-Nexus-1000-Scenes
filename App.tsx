@@ -218,7 +218,7 @@ const App: React.FC = () => {
         const updatedScene = { ...selectedScene, highResUrl: url, isGeneratingHighRes: false };
         setSelectedScene(updatedScene);
         setScenes(prev => prev.map(s => s.id === selectedScene.id ? updatedScene : s));
-        addToast("High-Res Image Complete (2K)", "success");
+        addToast("High-Res Image Complete (Flash)", "success");
       } else {
         throw new Error("No image returned");
       }
@@ -250,23 +250,38 @@ const App: React.FC = () => {
 
   const handleGeneratePageThumbnails = async () => {
     if (!window.aistudio?.hasSelectedApiKey()) {
-        await window.aistudio?.openSelectKey();
-        return;
+        try {
+            await window.aistudio?.openSelectKey();
+            if (!window.aistudio?.hasSelectedApiKey()) return;
+        } catch (e) { return; }
     }
 
-    addToast("Batch Loading Visuals...", "info");
     const filteredScenes = showFavorites ? scenes.filter(s => s.isFavorite) : scenes;
     const displayedScenes = filteredScenes.slice(
       (currentPage - 1) * ITEMS_PER_PAGE,
       currentPage * ITEMS_PER_PAGE
     );
     
-    // Process sequentially to be nice to rate limits
-    for (const scene of displayedScenes) {
-       if (!scene.thumbnailUrl || scene.thumbnailUrl.includes('picsum')) { // Check if missing or placeholder
-         await handleGenerateImage(scene.id, scene.description);
-       }
+    // Filter scenes that effectively need generation (no URL or using placeholder)
+    const scenesToLoad = displayedScenes.filter(
+        s => !s.thumbnailUrl || s.thumbnailUrl.includes('picsum')
+    );
+
+    if (scenesToLoad.length === 0) {
+        addToast("All visuals on page already loaded.", "info");
+        return;
     }
+
+    addToast(`Loading ${scenesToLoad.length} visuals...`, "info");
+
+    // Process in chunks of 3 to optimize speed while respecting rate limits
+    const CHUNK_SIZE = 3;
+    for (let i = 0; i < scenesToLoad.length; i += CHUNK_SIZE) {
+        const chunk = scenesToLoad.slice(i, i + CHUNK_SIZE);
+        await Promise.all(chunk.map(scene => handleGenerateImage(scene.id, scene.description)));
+    }
+    
+    addToast("Page Visuals Loaded", "success");
   };
 
   // --- Modal Logic ---
